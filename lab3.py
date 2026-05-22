@@ -1,10 +1,4 @@
 # coding=utf-8
-"""
-Лабораторная работа №3
-Вариант 9: Потоковое шифрование, хеш-функции MD4, MaHash3, MD5
-Генераторы: Линейный конгруэнтный, Аддитивный, RSA
-Выполнил: Валиуллов Р.Р., группа ИВТИИбд-31
-"""
 
 from random import randint, choice
 from math import gcd
@@ -55,6 +49,14 @@ def right_rotate(x, n, bits=32):
     """Циклический сдвиг вправо"""
     mask = (1 << bits) - 1
     return (x >> n) | ((x & ((1 << n) - 1)) << (bits - n)) & mask
+
+
+def string_to_int(s):
+    """Преобразование строки в целое число (битовое представление)"""
+    result = 0
+    for ch in s:
+        result = (result << 8) | ord(ch)
+    return result
 
 
 # ==================== ГЕНЕРАТОРЫ ИЗ ВТОРОЙ РАБОТЫ ====================
@@ -541,7 +543,7 @@ class GUI:
         self.generators = ('Линейный конгруэнтный генератор', 'Аддитивный генератор', 'RSA генератор (BBS)')
 
         # Хеш-функции для варианта 9
-        self.hash_functions = ('MD4 (удовлетворительно)', 'MaHash3 (хорошо)', 'MD5 (отлично)')
+        self.hash_functions = ('MD4', 'MaHash3', 'MD5')
 
         self.combo_gen = None
         self.combo_hash = None
@@ -550,6 +552,8 @@ class GUI:
         self.cipher_label = None
         self.decipher_label = None
         self.hash_label = None
+        self.password_entry = None
+        self.password_mode = None
 
         self.password = None
         self.password_len = 430
@@ -558,7 +562,7 @@ class GUI:
     def start(self):
         root = tk.Tk()
         root.title("Лабораторная работа №3 (Вариант 9) - Валиуллов Р.Р., ИВТИИбд-31")
-        root.geometry("900x750")
+        root.geometry("900x1000")
         root.resizable(False, False)
         root.configure(bg=self.white)
 
@@ -586,21 +590,62 @@ class GUI:
                                    pady=self.pad_10, width=self.width)
         self.load_label.pack()
 
-        # Выбор генератора для пароля
-        tk.Label(left_panel, text='Выберите генератор для создания пароля:',
+        # Разделитель
+        separator1 = tk.Label(left_panel, text='─────────────────────────────────────────────────────────────',
+                              font=self.font, background=self.white, pady=self.pad_5)
+        separator1.pack()
+
+        # ==================== ВВОД ТЕКСТОВОГО ПАРОЛЯ ====================
+
+        tk.Label(left_panel, text='Введите текстовый пароль (будет хеширован):',
                  font=self.font, background=self.white, pady=self.pad_10, width=self.width, anchor='w').pack()
 
-        self.combo_gen = ttk.Combobox(left_panel, values=self.generators, width=35, font=self.font)
-        self.combo_gen.current(0)
-        self.combo_gen.pack()
+        self.password_entry = tk.Entry(left_panel, font=self.font, width=40, justify='center')
+        self.password_entry.pack()
+        self.password_entry.insert(0, "123123qwe")
 
-        # Выбор хеш-функции
-        tk.Label(left_panel, text='Выберите хеш-функцию (согласно варианту 9):',
+        # Выбор хеш-функции для пароля
+        tk.Label(left_panel, text='Выберите хеш-функцию для пароля:',
                  font=self.font, background=self.white, pady=self.pad_10, width=self.width, anchor='w').pack()
 
         self.combo_hash = ttk.Combobox(left_panel, values=self.hash_functions, width=35, font=self.font)
         self.combo_hash.current(0)
         self.combo_hash.pack()
+
+        tk.Label(left_panel, text='', font=self.font, background=self.white).pack()
+        tk.Button(left_panel, text="Хешировать пароль и установить как ключ", background=self.grey,
+                  foreground='white', pady=self.pad_5, padx=self.pad_10, font=self.font,
+                  command=self.hash_password).pack()
+
+        self.hash_label = tk.Label(left_panel, text='', font=self.font, background=self.white,
+                                   pady=self.pad_10, width=self.width)
+        self.hash_label.pack()
+
+        # Разделитель
+        separator2 = tk.Label(left_panel, text='─────────────────────────────────────────────────────────────',
+                              font=self.font, background=self.white, pady=self.pad_5)
+        separator2.pack()
+
+        # ==================== ГЕНЕРАЦИЯ ПАРОЛЯ ЧЕРЕЗ ГЕНЕРАТОР ====================
+
+        tk.Label(left_panel, text='ИЛИ сгенерируйте пароль через генератор:',
+                 font=self.font, background=self.white, pady=self.pad_10, width=self.width, anchor='w').pack()
+
+        # Выбор генератора для пароля
+        tk.Label(left_panel, text='Выберите генератор:',
+                 font=self.font, background=self.white, pady=self.pad_5, width=self.width, anchor='w').pack()
+
+        self.combo_gen = ttk.Combobox(left_panel, values=self.generators, width=35, font=self.font)
+        self.combo_gen.current(0)
+        self.combo_gen.pack()
+
+        # Выбор хеш-функции для генератора
+        tk.Label(left_panel, text='Выберите хеш-функцию для генератора:',
+                 font=self.font, background=self.white, pady=self.pad_10, width=self.width, anchor='w').pack()
+
+        self.combo_hash_gen = ttk.Combobox(left_panel, values=self.hash_functions, width=35, font=self.font)
+        self.combo_hash_gen.current(0)
+        self.combo_hash_gen.pack()
 
         tk.Label(left_panel, text='', font=self.font, background=self.white).pack()
         tk.Button(left_panel, text="Сгенерировать и хешировать пароль", background=self.grey,
@@ -611,9 +656,11 @@ class GUI:
         self.gen_label.pack()
 
         # Разделитель
-        separator = tk.Label(left_panel, text='─────────────────────────────────────────────────────────────',
-                             font=self.font, background=self.white, pady=self.pad_5)
-        separator.pack()
+        separator3 = tk.Label(left_panel, text='─────────────────────────────────────────────────────────────',
+                              font=self.font, background=self.white, pady=self.pad_5)
+        separator3.pack()
+
+        # ==================== ШИФРОВАНИЕ/ДЕШИФРОВАНИЕ ====================
 
         # Шифрование
         tk.Label(left_panel, text='Шифрование',
@@ -635,14 +682,21 @@ class GUI:
 
         # Просмотр хеша
         tk.Label(left_panel, text='', font=('Arial', 5), background=self.white).pack()
-        tk.Button(left_panel, text="Просмотр хеш-значения пароля", background=self.grey,
+        tk.Button(left_panel, text="Просмотр текущего хеш-значения ключа", background=self.grey,
                   foreground='white', pady=self.pad_5, padx=self.pad_10, font=self.font,
                   command=self.print_password).pack()
-        self.hash_label = tk.Label(left_panel, text='', font=self.font, background=self.white,
-                                   pady=self.pad_10, width=self.width)
-        self.hash_label.pack()
+        self.password_display = tk.Label(left_panel, text='', font=self.font, background=self.white,
+                                         pady=self.pad_10, width=self.width)
+        self.password_display.pack()
 
         # ==================== ПРАВАЯ ПАНЕЛЬ (ЛОГИ) ====================
+
+        log_header = tk.Label(right_panel, text="ЛОГ РАБОТЫ",
+                              font=("Arial", 12, "bold"),
+                              background=self.dark_grey,
+                              foreground='white',
+                              pady=5)
+        log_header.pack(fill=tk.X, pady=(0, 5))
 
         log_frame = tk.Frame(right_panel, bg=self.white)
         log_frame.pack(fill=tk.BOTH, expand=True)
@@ -668,15 +722,56 @@ class GUI:
         log_message("Программа запущена")
         log_message("Вариант 9: Линейный конгруэнтный, Аддитивный, RSA генераторы")
         log_message("Хеш-функции: MD4, MaHash3, MD5")
+        log_message("Доступно: хеширование текстового пароля ИЛИ генерация через генератор")
 
         root.mainloop()
 
+    def hash_password(self):
+        """Хеширование текстового пароля, введённого пользователем"""
+        log_message("=== ХЕШИРОВАНИЕ ТЕКСТОВОГО ПАРОЛЯ ===")
+
+        password_text = self.password_entry.get()
+        hash_type = self.combo_hash.get()
+
+        if not password_text:
+            self.hash_label['text'] = 'Ошибка: введите пароль'
+            self.hash_label['foreground'] = 'red'
+            log_message("Ошибка: пароль не введён")
+            return
+
+        log_message(f"Введён пароль: {password_text}")
+        log_message(f"Выбрана хеш-функция: {hash_type}")
+
+        # Преобразуем строку в число
+        password_int = string_to_int(password_text)
+        log_message(f"Пароль в числовом виде: {hex(password_int)}")
+
+        # Хеширование пароля
+        if hash_type == self.hash_functions[0]:
+            password_hash = md4(password_int)
+        elif hash_type == self.hash_functions[1]:
+            password_hash = mahash3(password_int)
+        elif hash_type == self.hash_functions[2]:
+            password_hash = md5(password_int)
+        else:
+            self.hash_label['text'] = 'Ошибка: неизвестная хеш-функция'
+            self.hash_label['foreground'] = 'red'
+            log_message("Ошибка: неизвестная хеш-функция")
+            return
+
+        self.password = PasswordGenerator(password_hash)
+
+        self.hash_label['text'] = f'Пароль захеширован через {hash_type}'
+        self.hash_label['foreground'] = 'green'
+        self.password_display['text'] = f'Хеш ключа: {hex(password_hash)}'
+        log_message("Пароль успешно захеширован и установлен как ключ шифрования")
+
     def create_password(self):
-        """Создание и хеширование пароля"""
-        log_message("=== ГЕНЕРАЦИЯ ПАРОЛЯ ===")
+        """Создание и хеширование пароля через генератор"""
+        log_message("=== ГЕНЕРАЦИЯ ПАРОЛЯ ЧЕРЕЗ ГЕНЕРАТОР ===")
 
         gen_type = self.combo_gen.get()
-        hash_type = self.combo_hash.get()
+        hash_type = self.combo_hash_gen.get()
 
         log_message(f"Выбран генератор: {gen_type}")
         log_message(f"Выбрана хеш-функция: {hash_type}")
@@ -714,18 +809,19 @@ class GUI:
 
         self.gen_label['text'] = 'Пароль сгенерирован, хеширован и сохранен'
         self.gen_label['foreground'] = 'green'
+        self.password_display['text'] = f'Хеш ключа: {hex(password_hash)}'
         log_message("Пароль успешно сгенерирован и сохранен")
 
     def print_password(self):
-        """Печать хеш-значения пароля"""
+        """Печать хеш-значения текущего ключа"""
         if self.password is None:
-            self.hash_label['text'] = 'Сначала сгенерируйте пароль'
-            log_message("Ошибка: пароль не сгенерирован")
+            self.password_display['text'] = 'Сначала сгенерируйте или захешируйте пароль'
+            log_message("Ошибка: ключ не установлен")
             return
 
         hash_value = hex(self.password.print())
-        self.hash_label['text'] = hash_value
-        log_message(f"Хеш пароля: {hash_value}")
+        self.password_display['text'] = f'Хеш ключа: {hash_value}'
+        log_message(f"Текущий хеш ключа: {hash_value}")
 
     def load_file(self):
         """Загрузка файла"""
@@ -769,9 +865,9 @@ class GUI:
         log_message("=== ШИФРОВАНИЕ ===")
 
         if self.password is None:
-            self.cipher_label['text'] = 'Сначала сгенерируйте пароль'
+            self.cipher_label['text'] = 'Сначала установите ключ (через хеширование пароля или генерацию)'
             self.cipher_label['foreground'] = 'red'
-            log_message("Ошибка: пароль не сгенерирован")
+            log_message("Ошибка: ключ не установлен")
             return
 
         try:
@@ -823,9 +919,9 @@ class GUI:
         log_message("=== ДЕШИФРОВАНИЕ ===")
 
         if self.password is None:
-            self.decipher_label['text'] = 'Сначала сгенерируйте пароль'
+            self.decipher_label['text'] = 'Сначала установите ключ (через хеширование пароля или генерацию)'
             self.decipher_label['foreground'] = 'red'
-            log_message("Ошибка: пароль не сгенерирован")
+            log_message("Ошибка: ключ не установлен")
             return
 
         try:
@@ -898,5 +994,9 @@ class PasswordGenerator:
 
 
 if __name__ == "__main__":
+    # Создаём директорию support если её нет
+    if not os.path.exists('support'):
+        os.makedirs('support')
+
     gui = GUI()
     gui.start()
